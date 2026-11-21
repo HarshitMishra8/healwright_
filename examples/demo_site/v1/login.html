@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Acme Login (v1)</title></head>
+<body>
+  <h1>Acme Portal</h1>
+  <form id="login-form">
+    <label for="username">Username</label>
+    <input id="username" name="username" placeholder="Username">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" placeholder="Password">
+    <button id="login-btn" class="btn btn-primary" type="submit">Log in</button>
+    <button id="signup-btn" class="btn" type="button">Create account</button>
+    <a href="#forgot">Forgot password?</a>
+  </form>
+  <div id="welcome" hidden></div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const w = document.getElementById('welcome');
+      w.textContent = 'Welcome, ' + document.getElementById('username').value + '!';
+      w.hidden = false;
+    });
+  </script>
+</body>
+</html>

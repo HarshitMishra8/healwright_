@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Acme Login (v2 - redesigned)</title></head>
+<body>
+  <!-- v2: a "redesign" that breaks every v1 selector. IDs, names, classes,
+       wording and layout all changed, the way real front-end refactors do. -->
+  <main class="auth-shell">
+    <h1>Welcome back to Acme</h1>
+    <form class="auth-form" data-form="signin">
+      <div class="field">
+        <label for="user-field">Email or username</label>
+        <input id="user-field" name="login" placeholder="Email or username" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="pass-field">Password</label>
+        <input id="pass-field" name="pwd" type="password" placeholder="Your password">
+      </div>
+      <div class="actions">
+        <a href="#forgot" class="muted">Forgot your password?</a>
+        <button class="ui-button ui-button--ghost" type="button">Create an account</button>
+        <button class="ui-button ui-button--primary" type="submit">Log in to Acme</button>
+      </div>
+    </form>
+    <section class="banner" role="status" hidden></section>
+  </main>
+  <script>
+    document.querySelector('.auth-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const b = document.querySelector('.banner');
+      b.textContent = 'Welcome, ' + document.getElementById('user-field').value + '!';
+      b.hidden = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "healwright"
+version = "0.1.0"
+description = "Self-healing Playwright tests written in plain English."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "playwright>=1.40",
+  "pydantic>=2",
+  "PyYAML>=6",
+  "click>=8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+healwright = "healwright.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["healwright*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

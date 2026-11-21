@@ -1,0 +1,16 @@
+name: login shows welcome message
+steps:
+- action: goto
+  intent: open the login page
+  value: login.html
+- action: fill
+  intent: the username field
+  value: asha
+- action: fill
+  intent: the password field
+  value: s3cret
+- action: click
+  intent: the Log in button
+- action: expect_text
+  intent: the welcome message
+  value: Welcome, asha!

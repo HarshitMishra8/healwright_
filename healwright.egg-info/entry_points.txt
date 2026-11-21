@@ -1,0 +1,2 @@
+[console_scripts]
+healwright = healwright.cli:main
