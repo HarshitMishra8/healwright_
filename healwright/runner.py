@@ -28,6 +28,7 @@ class StepResult:
     confidence: float | None = None
     reason: str | None = None
     error: str | None = None
+    screenshot: bytes | None = field(default=None, repr=False)  # PNG, only with capture=True
 
 
 @dataclass
@@ -36,13 +37,19 @@ class RunReport:
     passed: bool
     duration_s: float
     steps: list[StepResult] = field(default_factory=list)
+    base_url: str = ""
+    llm: str | None = None          # e.g. "gemini (gemini-3.5-flash-lite)", None = heuristic only
+    started_at: str = ""            # local time, for the HTML report
 
     @property
     def healed(self) -> list[StepResult]:
         return [s for s in self.steps if s.status in ("healed", "resolved")]
 
     def to_json(self) -> str:
-        return json.dumps(asdict(self), indent=2)
+        data = asdict(self)
+        for st in data["steps"]:
+            st.pop("screenshot", None)  # images go in the HTML report, not the JSON
+        return json.dumps(data, indent=2)
 
 
 class StepFailed(Exception):
@@ -51,8 +58,10 @@ class StepFailed(Exception):
 
 class Runner:
     def __init__(self, provider: LLMProvider | None = None, timeout_ms: int = 3000,
-                 probe_ms: int = 1500, headed: bool = False):
+                 probe_ms: int = 1500, headed: bool = False, capture: bool = False):
         self.healers = [HeuristicHealer()] + ([LLMHealer(provider)] if provider else [])
+        self.provider = provider
+        self.capture = capture  # take screenshots for the HTML report (D-020)
         self.timeout_ms = timeout_ms  # how long actions/assertions may wait
         self.probe_ms = probe_ms      # how long a saved selector gets before we heal (D-009)
         self.headed = headed
@@ -60,7 +69,9 @@ class Runner:
     # ---- public -------------------------------------------------------
     def run(self, spec: TestSpec, base_url: str | None = None) -> RunReport:
         base = base_url or spec.base_url or ""
-        report = RunReport(test=spec.name, passed=True, duration_s=0)
+        llm = f"{self.provider.name} ({getattr(self.provider, 'model', '?')})" if self.provider else None
+        report = RunReport(test=spec.name, passed=True, duration_s=0, base_url=base, llm=llm,
+                           started_at=time.strftime("%Y-%m-%d %H:%M"))
         t0 = time.time()
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=not self.headed)
@@ -101,6 +112,8 @@ class Runner:
                 res.status = "healed" if sel else "resolved"
                 res.old_selector, res.selector = sel, new_sel
                 res.method, res.confidence, res.reason = heal.method, heal.confidence, heal.reason
+                if self.capture:
+                    res.screenshot = self._snap_element(page, new_sel)
 
             self._act(page, step, res.selector)
             # Remember what the element looks like now, for future heals.
@@ -110,7 +123,52 @@ class Runner:
         except Exception as e:  # noqa: BLE001 - every failure becomes a report line
             res.status = "failed"
             res.error = str(e).splitlines()[0][:300]
+            if self.capture:
+                try:
+                    res.screenshot = self._snap_page(page)
+                except Exception:
+                    pass
         return res
+
+    def _snap_page(self, page: Page) -> bytes:
+        """The visible page, cropped below the last content so there's no empty space."""
+        vw, vh = page.viewport_size["width"], page.viewport_size["height"]
+        bottom = page.evaluate("""() => {
+            let b = 0;
+            for (const el of document.body.querySelectorAll('*')) {
+                const r = el.getBoundingClientRect();
+                if (r.width && r.height) b = Math.max(b, r.bottom);
+            }
+            return b; }""")
+        h = min(max(bottom + 30, 200), vh)
+        return page.screenshot(clip={"x": 0, "y": 0, "width": vw, "height": h})
+
+    def _snap_element(self, page: Page, sel: str) -> bytes | None:
+        """Picture of the element and its surroundings, outlined, for the HTML report."""
+        try:
+            loc = page.locator(sel)
+            loc.scroll_into_view_if_needed(timeout=self.timeout_ms)
+            box = loc.bounding_box()
+            if not box:
+                return None
+            prev = loc.evaluate("el => [el.style.outline, el.style.outlineOffset]")
+            loc.evaluate("el => { el.style.outline = '3px solid #e8590c'; el.style.outlineOffset = '3px'; }")
+            vw, vh = page.viewport_size["width"], page.viewport_size["height"]
+            # A readable cutout centred on the element: at least 360x180, at most 600 wide,
+            # so very wide elements (banners) don't become a thin unreadable strip.
+            pad = 70
+            w = min(max(box["width"] + 2 * pad, 360), 600, vw)
+            h = min(max(box["height"] + 2 * pad, 180), vh)
+            cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            x = min(max(cx - w / 2, 0), vw - w)
+            if box["width"] + 2 * pad > w:  # wide element: show its left part, where text starts
+                x = min(max(box["x"] - 20, 0), vw - w)
+            y = min(max(cy - h / 2, 0), vh - h)
+            png = page.screenshot(clip={"x": x, "y": y, "width": w, "height": h})
+            loc.evaluate("(el, p) => { el.style.outline = p[0]; el.style.outlineOffset = p[1]; }", prev)
+            return png
+        except Exception:
+            return None  # a missing picture must never fail the test
 
     def _usable(self, page: Page, sel: str) -> bool:
         try:
@@ -147,9 +205,10 @@ class Runner:
 
 
 def run_file(path: str | Path, base_url: str | None = None, update: bool = False,
-             provider: LLMProvider | None = None, headed: bool = False) -> RunReport:
+             provider: LLMProvider | None = None, headed: bool = False,
+             capture: bool = False) -> RunReport:
     spec = TestSpec.load(path)
-    report = Runner(provider=provider, headed=headed).run(spec, base_url=base_url)
+    report = Runner(provider=provider, headed=headed, capture=capture).run(spec, base_url=base_url)
     if update and report.passed:
         spec.save(path)  # only a fully passing run may rewrite the test (DECISIONS D-007)
     return report

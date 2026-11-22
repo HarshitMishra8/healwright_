@@ -9,6 +9,7 @@ import click
 
 from .llm import LLMError, default_provider
 from .planner import export_pytest, plan
+from .report import write_html
 from .runner import run_file
 from .spec import TestSpec
 
@@ -34,11 +35,14 @@ def main() -> None:
 @click.option("--no-llm", is_flag=True, help="Heuristic healing only, even if ANTHROPIC_API_KEY is set.")
 @click.option("--headed", is_flag=True, help="Show the browser window.")
 @click.option("--report", "report_path", type=click.Path(dir_okay=False), help="Write a JSON report here.")
-def run(spec_path, base_url, update, no_llm, headed, report_path) -> None:
+@click.option("--html", "html_path", type=click.Path(dir_okay=False),
+              help="Write a visual HTML report (with screenshots) here.")
+def run(spec_path, base_url, update, no_llm, headed, report_path, html_path) -> None:
     """Run a test spec, healing broken selectors."""
     provider = None if no_llm else _provider()
     click.echo(f"LLM healing: {f'on ({provider.name}, {provider.model})' if provider else 'off'}")
-    report = run_file(spec_path, base_url=base_url, update=update, provider=provider, headed=headed)
+    report = run_file(spec_path, base_url=base_url, update=update, provider=provider, headed=headed,
+                      capture=bool(html_path))
 
     for s in report.steps:
         line = f"[{ICONS[s.status]}] {s.index + 1}. {s.action:<14} {s.intent}"
@@ -52,10 +56,13 @@ def run(spec_path, base_url, update, no_llm, headed, report_path) -> None:
 
     click.echo(f"\n{'PASSED' if report.passed else 'FAILED'} in {report.duration_s}s, "
                f"{len(report.healed)} step(s) found/healed")
-    if report.healed and not update:
+    if report.passed and report.healed and not update:
         click.echo("Tip: re-run with --update to save the new selectors into the spec.")
     if report_path:
         Path(report_path).write_text(report.to_json(), encoding="utf-8")
+    if html_path:
+        write_html(report, html_path)
+        click.echo(f"HTML report: {Path(html_path).resolve()}")
     sys.exit(0 if report.passed else 1)
 
 

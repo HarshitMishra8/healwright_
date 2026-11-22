@@ -226,3 +226,53 @@ sent as `Authorization: Bearer`.
   the change as a new commit.
 - Lesson: patch files from chat must be downloaded first. These edits were applied with a
   pasted script instead.
+
+---
+
+## Session 5: 2026-11-22, visual HTML heal report
+
+**Goal:** A shareable page that *shows* healing (for the README, recruiters and the demo video).
+
+### What we built
+| File | Change |
+|---|---|
+| `healwright/report.py` | **New.** `render_html()` / `write_html()`: one self-contained HTML page (D-020) |
+| `healwright/runner.py` | `capture=True` takes screenshots: an outlined cutout of each found/healed element, and a cropped page shot on failure. The report also records base URL, AI provider and start time |
+| `healwright/cli.py` | New `--html report.html` option. The "re-run with --update" tip now only shows on passing runs |
+| `tests/test_report.py` | **New.** 6 tests: healed report, failed report, HTML escaping, no screenshots without capture, no images in JSON, CLI flag |
+| `docs/report-example.png` | Screenshot of a real v1→v2 report, shown in the README |
+
+### How we checked the design
+We opened the generated reports in a real browser and looked at them (desktop and phone width),
+then fixed what looked wrong:
+1. A wide element (the full-width welcome banner) became a thin unreadable strip. Fix: the
+   cutout is at least 360×180 and at most 600 wide, anchored left for wide elements.
+2. The failure screenshot was tiny in the side slot. Fix: on failure it's shown full width
+   under the error, cropped where the page content ends.
+3. The confidence bar was green even at 58%. Fix: amber below 70%.
+
+### Result
+**33 tests pass.** Try it:
+```bash
+cp examples/login_test.yaml /tmp/t.yaml
+healwright run /tmp/t.yaml --base-url "file://$PWD/examples/demo_site/v1/" --update
+healwright run /tmp/t.yaml --base-url "file://$PWD/examples/demo_site/v2/" --html report.html
+open report.html
+```
+
+### Next steps
+1. Try Healwright on a real public site (e.g. saucedemo.com) and write down where healing
+   struggles. That's the data for tuning.
+2. Record the 2-minute demo video: v1 passes → redesign → plain Playwright breaks → Healwright
+   heals → open the HTML report.
+
+### Moving to the new repo `healwright_` (D-021)
+The project now lives in `~/Desktop/healwright_` and on GitHub at `HarshitMishra8/healwright_`.
+Things fixed after the move:
+- Re-added `.github/workflows/tests.yml` (CI) and `.gitignore` (now also ignores `.DS_Store`).
+- Removed `build/`, `healwright.egg-info/` and `.DS_Store` from git (`git rm -r --cached ...`).
+- Created a fresh `.venv` in the new folder. Without it, `pip install` went into conda `(base)`.
+- README badge now points to `healwright_`.
+- Lesson: when a new zip arrives, unzip it **into the existing project folder**
+  (`unzip -o file.zip -d .`). Don't make a new folder, or hidden files like `.github/` and
+  `.gitignore` get lost.

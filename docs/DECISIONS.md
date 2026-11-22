@@ -210,3 +210,46 @@ Template for new entries:
   or reuse the code without permission. Companies won't adopt it as open source. That's fine
   for a portfolio and keeps selling options open. A license can be added any time later;
   taking one back is much harder, so starting without one is the safer default.
+
+## D-019: The AI assistant hands over files; only Harshit commits
+- Date: 2026-11-21 | Status: Accepted (chosen by project owner; replaces the patch workflow)
+- Context: Patch files (`git am`) carry an author name, needed downloading, and caused
+  mix-ups: wrong author, amending a pushed commit, missing files.
+- Decision: For every change, the assistant (1) reads the latest code from the public GitHub
+  repo, read-only, (2) makes and tests the change, and (3) hands over **only the changed
+  files** (or, for tiny edits, one paste-able command), with a list of what changed and a
+  suggested commit message. Harshit copies them in, then runs `git add`, `git commit` and
+  `git push` himself. No commits, patches, "Claude" or "Co-Authored-By" lines from the
+  assistant.
+- Consequences: GitHub shows only Harshit as contributor. One manual copy step per change.
+  Before handing over files, the assistant must check it started from the latest GitHub
+  version, so nothing Harshit changed gets overwritten.
+
+## D-020: Self-contained HTML heal report with screenshots
+- Date: 2026-11-22 | Status: Accepted
+- Context: Terminal output proves healing works, but recruiters, reviewers and a demo video
+  need something visual that can be opened and shared without installing anything.
+- Decision: `healwright run --html report.html` writes ONE file: inline CSS, screenshots
+  embedded as base64, no external links. It has a summary (steps, passed, found, healed,
+  failed) and one card per step: old → new selector, "Heuristic (free)" or "AI (LLM)",
+  a confidence bar (amber below 70%, so reviewers double-check low-confidence heals), and
+  a screenshot with the chosen element outlined. Failed steps show a cropped page screenshot.
+  Screenshots are taken only when `--html` is used (`capture=True`), so normal runs stay fast.
+  All text from tests, pages or LLMs is HTML-escaped. The JSON report never contains images.
+- Alternatives: A web dashboard (needs a server, later, maybe as the paid tier). Allure or
+  pytest-html plugins (extra dependency, and they can't show heal-specific info).
+- Consequences: About 100-150 KB per report. A screenshot failure never fails a test.
+  6 new tests (33 total), including one that checks a `<script>` in a test name can't run.
+
+## D-021: Project moved to a fresh repo, `HarshitMishra8/healwright_`
+- Date: 2026-11-22 | Status: Accepted (chosen by project owner)
+- Context: Even after rewriting history (D-016), the old repo `HarshitMishra8/Healwright`
+  could still list the AI assistant as a contributor.
+- Decision: Start a new repo `healwright_` from a clean folder, with one "initial commit" by
+  Harshit. All future work happens there.
+- Consequences: GitHub shows only Harshit (or no contributors yet). Old commit history isn't
+  in the new repo, but BUILD_LOG and DECISIONS keep the full story. Copying files by hand left
+  out `.github/` (CI) and `.gitignore`, and let `build/`, `healwright.egg-info/` and `.DS_Store`
+  get committed. Fixed in the same session (see BUILD_LOG Session 5). Still to decide: what
+  to do with the old repo (make it private, archive or delete), and whether to rename
+  `healwright_` to something without the underscore.

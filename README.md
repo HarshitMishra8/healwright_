@@ -1,6 +1,6 @@
 # Healwright
 
-![tests](https://github.com/HarshitMishra8/Healwright/actions/workflows/tests.yml/badge.svg)
+![tests](https://github.com/HarshitMishra8/healwright_/actions/workflows/tests.yml/badge.svg)
 
 **Self-healing Playwright tests, written in plain English.**
 
@@ -63,7 +63,7 @@ healwright plan "Log in as asha with password s3cret and check the welcome messa
 ## Commands
 | Command | What it does |
 |---|---|
-| `healwright run SPEC [--base-url URL] [--update] [--no-llm] [--headed] [--report out.json]` | Run, heal, report |
+| `healwright run SPEC [--base-url URL] [--update] [--no-llm] [--headed] [--report out.json] [--html report.html]` | Run, heal, report |
 | `healwright plan "DESCRIPTION" --url URL -o SPEC` | Plain English to test spec |
 | `healwright export SPEC -o test_x.py` | Spec to plain Playwright test |
 
@@ -80,6 +80,19 @@ only adds `plan` and a fallback for hard heals. Pick one by setting environment 
 
 If no provider is named, Healwright looks for `ANTHROPIC_API_KEY`, then `GEMINI_API_KEY`.
 `HEALWRIGHT_MODEL` overrides the model for any provider. Never commit keys.
+
+## Visual HTML report
+Add `--html report.html` to any run to get a single, self-contained page. Open it in any
+browser, no internet needed. It shows every step, the old and new selector for each heal,
+whether the free heuristic or the AI found it, how confident it was, and a screenshot of the
+element it picked:
+
+```bash
+healwright run my_test.yaml --base-url "file://$PWD/examples/demo_site/v2/" --html report.html
+open report.html        # macOS; on Windows: start report.html
+```
+
+![Example Healwright report](docs/report-example.png)
 
 ## How it works
 1. **Fingerprint:** after each successful step, store the element's tag, id, name, text,
